@@ -161,9 +161,9 @@ function frame(now){
   if(!firstTouch&&state===IDLE){const a=.55+Math.sin(t*3)*.3;
     ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';
     ctx.font='600 '+Math.min(W*.042,17)+'px Khand,"Noto Sans Devanagari",sans-serif';
-    ctx.fillText('माचिस घिसाइए',trk.x-14,trk.y0+46);
+    ctx.fillText('माचिस घिसाइए',trk.x-95,trk.y0+40);
     const ay=trk.y0-((t*40)%(trk.y0-trk.y1));ctx.globalAlpha=a*.8;
-    ctx.beginPath();ctx.arc(trk.x-18,ay,5,0,7);ctx.fill();ctx.globalAlpha=1;}
+    ctx.beginPath();ctx.arc(trk.x-24,ay,5,0,7);ctx.fill();ctx.globalAlpha=1;}
   ctx.fillStyle='rgba(200,210,235,.5)';
   ctx.font='500 '+Math.min(W*.033,13)+'px Khand,"Noto Sans Devanagari",sans-serif';
   ctx.fillText(FOOT,W/2,H*.965);
