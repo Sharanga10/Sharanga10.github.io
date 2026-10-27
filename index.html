@@ -5,31 +5,40 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#081027">
 <meta property="og:title" content="एक दिया नशा मुक्ति के लिए">
-<meta property="og:description" content="माचिस खिसकाइए, दीये जलाइए — इस दीपावली नशा मुक्ति का दिया भी जलाइए। परामर्श 14446 · मानस 1933">
+<meta property="og:description" content="माचिस घिसाइए, दीये जलाइए — इस दीपावली नशा मुक्ति का दिया भी जलाइए। परामर्श 14446 · मानस 1933">
 <meta property="og:type" content="website">
 <title>एक दिया नशा मुक्ति के लिए</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Khand:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#081027;overflow:hidden;-webkit-user-select:none;user-select:none}
+  html,body{margin:0;padding:0;height:100%;background:#081027;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none}
   canvas{display:block;width:100vw;height:100dvh;touch-action:none}
-  #cta{position:fixed;left:50%;bottom:5.5vh;transform:translateX(-50%);display:none;
+  #cta{position:fixed;left:50%;bottom:6vh;transform:translateX(-50%);display:none;
     font-family:Khand,"Noto Sans Devanagari",sans-serif;font-weight:700;font-size:17px;color:#ffd98a;
     background:rgba(10,19,48,.72);border:1.5px solid rgba(245,192,78,.75);border-radius:999px;
     padding:12px 26px;letter-spacing:.5px;cursor:pointer;box-shadow:0 0 24px rgba(245,192,78,.28)}
   #cta:active{transform:translateX(-50%) scale(.97)}
+  #rs{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;display:none;background:none;
+    border:1px solid rgba(245,192,78,.35);color:#ffd98a;border-radius:50%;width:34px;height:34px;
+    font-size:17px;cursor:pointer;font-family:Khand,sans-serif}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <button id="cta">अपना दिया जलाएँ · शेयर करें</button>
+<button id="rs" aria-label="फिर से">↺</button>
 <script>
-const cv=document.getElementById('c'),ctx=cv.getContext('2d'),cta=document.getElementById('cta');
-let W=0,H=0,DPR=1;
-const HI='एक दिया नशा मुक्ति के लिए',WORD='शुभ दीपावली',
-      FOOT='परामर्श 14446 · मानस 1933 · @CGPoliceDept';
-let pts=[],p=0,maxP=0,dragging=false,complete=false,firstTouch=false,t0=performance.now();
-let trackY=0,x0=0,x1=0,wordCx=0,wordCy=0,boxW=0,boxH=0;
-const sparks=[];
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),cta=document.getElementById('cta'),rs=document.getElementById('rs');
+let W=0,H=0,DPR=1,started=false;
+const HI='एक दिया नशा मुक्ति के लिए',WORD='शुभ दीपावली',FOOT='परामर्श 14446 · मानस 1933 · @CGPoliceDept';
+const IDLE=0,STRIKE=1,IGNITE=2,ARRANGE=3,DONE=4;
+let state=IDLE,p=0,dragging=false,p0=0,lastY=0,igniteT=0,arrangeT=0,doneT=0,firstTouch=false,t0=performance.now();
+let activity=0,lastP=0,wordCx=0,wordCy=0,boxW=0,boxH=0;
+const mb={},trk={};
+let targets=[],diyas=[],sparks=[],dust=[];
+const demo=/demo/.test(location.search);let demoStart=0;
 const flameSpr=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
  const r=g.createRadialGradient(32,38,2,32,38,30);
  r.addColorStop(0,'rgba(255,252,235,1)');r.addColorStop(.22,'rgba(255,214,96,.96)');
@@ -43,13 +52,15 @@ const bowlSpr=(()=>{const c=document.createElement('canvas');c.width=84;c.height
  g.strokeStyle='#2c1608';g.lineWidth=2.4;g.beginPath();g.moveTo(42,26);g.quadraticCurveTo(43,18,45,15);g.stroke();
  return c;})();
 function layout(){
-  boxW=Math.min(W*.88,560);boxH=boxW*.24;
-  wordCx=W/2;wordCy=H*.33;trackY=H*.835;x0=W*.14;x1=W*.86;
+  mb.w=Math.min(W*.17,74);mb.h=Math.min(H*.30,240);mb.x=W-30-mb.w;mb.y=H*.50;
+  trk.x=mb.x-8;trk.y0=H*.84;trk.y1=mb.y+mb.h*.22;
+  boxW=Math.min(W*.92,620);boxH=boxW*.24;wordCx=W/2;wordCy=H*.30;
 }
 function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
-  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);layout();}
-addEventListener('resize',()=>{resize();if(started)sampleWord();});resize();
-let started=false;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);layout();initDust();if(started)sampleWord();}
+function initDust(){dust=[];const n=Math.round(W*H/26000);
+ for(let i=0;i<n;i++)dust.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*.25+.08,a:Math.random()*.1+.04,r:Math.random()*1.4+.5});}
+addEventListener('resize',()=>{resize();});resize();
 function sampleWord(){
   const oc=document.createElement('canvas');oc.width=1100;oc.height=280;const o=oc.getContext('2d');
   o.fillStyle='#fff';o.textAlign='center';o.textBaseline='middle';
@@ -59,97 +70,131 @@ function sampleWord(){
   for(let y=0;y<280;y+=st)for(let x=0;x<1100;x+=st)
     if(d[(y*1100+x)*4+3]>150)A.push([x/1100,y/280]);
   const cand=A.map(([px,py])=>[wordCx+(px-.5)*boxW,wordCy+(py-.5)*boxH]);
-  const minD=Math.max(15,boxW/20),keep=[];
+  const minD=Math.max(15,boxW/22),keep=[];
   for(const c of cand){let ok=true;
     for(const k of keep){const dx=c[0]-k[0],dy=c[1]-k[1];if(dx*dx+dy*dy<minD*minD){ok=false;break;}}
     if(ok)keep.push(c);}
-  for(let i=keep.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=keep[i];keep[i]=keep[j];keep[j]=t;}
-  pts=keep.slice(0,70);
+  keep.sort((a,b)=>(a[0]-b[0])||(a[1]-b[1]));
+  targets=keep.slice(0,56);
 }
 function burst(x,y,n,pow){for(let i=0;i<n;i++){const a=Math.random()*6.283,s=(Math.random()*.55+.25)*pow;
-  sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-0.4,life:1,r:Math.random()*2+1});}}
-function litCount(){return Math.min(pts.length,Math.floor(p*pts.length+0.001));}
-let lastLit=0;
+  sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.4,life:1,r:Math.random()*2+1});}}
+function sparkAt(x,y,up){sparks.push({x:x+(Math.random()-.5)*6,y,vx:(Math.random()-.5)*1.1,vy:(up?-1:1)*Math.random()*1.3-.2,life:1,r:Math.random()*1.8+.5});}
+function stickY(){return trk.y0+(trk.y1-trk.y0)*p;}
+function vibrate(ms){try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}}
+function ignite(){state=IGNITE;igniteT=performance.now();burst(trk.x,stickY(),30,2.4);vibrate(35);}
+function startArrange(){state=ARRANGE;arrangeT=performance.now();diyas=targets.map((t,i)=>({tx:t[0],ty:t[1],
+  sx:W*(.18+Math.random()*.64),sy:H*(.55+Math.random()*.25),t0:i*30,dur:480,lit:false,pop:0}));}
 function frame(now){
   const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0b1638');bg.addColorStop(1,'#050a1c');
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  const vg=ctx.createRadialGradient(W/2,H*.42,0,W/2,H*.42,Math.max(W,H)*.75);
+  vg.addColorStop(0,'rgba(20,40,90,.18)');vg.addColorStop(1,'rgba(0,0,0,.35)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  for(const s of dust){s.y-=s.s;if(s.y<-4){s.y=H+4;s.x=Math.random()*W;}
+    ctx.globalAlpha=s.a;ctx.fillStyle='#cfd8ff';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();}ctx.globalAlpha=1;
+  ctx.textAlign='center';ctx.textBaseline='middle';
   const hs=Math.min(W*.055,23);
   ctx.font='700 '+hs+'px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
-  ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillStyle='rgba(245,192,78,.95)';ctx.shadowColor='rgba(245,192,78,.8)';ctx.shadowBlur=14;
-  ctx.fillText(HI,W/2,H*.085);ctx.shadowBlur=0;
-  if(complete){ctx.save();ctx.globalAlpha=.3+Math.sin(t*2)*.06;
-    ctx.fillStyle='#ffd98a';ctx.shadowColor='rgba(255,180,60,.9)';ctx.shadowBlur=34;
-    ctx.font='700 '+Math.min(boxW*.14,74)+'px Khand,"Noto Sans Devanagari",sans-serif';
+  ctx.fillText(HI,W/2,H*.075);ctx.shadowBlur=0;
+  if(state===DONE){const a=Math.min(1,(now-doneT)/900)*(.3+Math.sin(t*2)*.05);
+    ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';ctx.shadowColor='rgba(255,180,60,.9)';ctx.shadowBlur=34;
+    ctx.font='700 '+Math.min(boxW*.14,72)+'px Khand,"Noto Sans Devanagari",sans-serif';
     ctx.fillText(WORD,wordCx,wordCy);ctx.restore();}
-  const n=litCount();
-  for(let i=0;i<pts.length;i++){
-    const[x,y]=pts[i],lit=i<n,fl=.82+Math.sin(t*7+i*1.7)*.14;
-    ctx.globalAlpha=lit?1:.16;ctx.drawImage(bowlSpr,x-13,y-8,26,16);
-    if(lit){ctx.globalCompositeOperation='lighter';
-      ctx.globalAlpha=.85*fl;ctx.drawImage(flameSpr,x-14,y-28,28,28);
-      ctx.globalAlpha=.28*fl;ctx.drawImage(flameSpr,x-26,y-40,52,52);
-      ctx.globalCompositeOperation='source-over';}
-    ctx.globalAlpha=1;}
-  const mbW=Math.min(W*.3,150),mbH=mbW*.24,mbX=W/2-mbW/2,mbY=H*.70;
-  ctx.save();ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;
-  const mg=ctx.createLinearGradient(0,mbY,0,mbY+mbH);mg.addColorStop(0,'#8a5526');mg.addColorStop(1,'#54300f');
-  ctx.fillStyle=mg;rct(mbX,mbY,mbW,mbH,5);ctx.fill();ctx.restore();
-  ctx.fillStyle='rgba(20,10,4,.8)';rct(mbX+mbW-14,mbY+2,9,mbH-4,2);ctx.fill();
-  ctx.fillStyle='#ffd98a';ctx.font='600 '+Math.round(mbH*.5)+'px Khand,"Noto Sans Devanagari",sans-serif';
-  ctx.fillText('माचिस',mbX+mbW/2-5,mbY+mbH/2+1);
-  ctx.strokeStyle='rgba(245,192,78,.18)';ctx.lineWidth=8;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(x0,trackY);ctx.lineTo(x1,trackY);ctx.stroke();
-  ctx.strokeStyle='rgba(245,192,78,.5)';ctx.beginPath();ctx.moveTo(x0,trackY);
-  ctx.lineTo(x0+(x1-x0)*p,trackY);ctx.stroke();
-  const sx=x0+(x1-x0)*p;
-  const sg=ctx.createLinearGradient(sx-52,0,sx,0);sg.addColorStop(0,'#8a5a2a');sg.addColorStop(1,'#d9a45e');
-  ctx.fillStyle=sg;rct(sx-52,trackY-3.5,48,7,3);ctx.fill();
-  ctx.fillStyle='#c22a2a';ctx.beginPath();ctx.arc(sx-2,trackY,7,0,7);ctx.fill();
-  ctx.fillStyle='rgba(255,120,120,.55)';ctx.beginPath();ctx.arc(sx-4,trackY-2,2.6,0,7);ctx.fill();
-  if(p>0.02&&!complete){ctx.globalCompositeOperation='lighter';
-    const fl=.85+Math.sin(t*13)*.2;ctx.globalAlpha=.95*fl;
-    ctx.drawImage(flameSpr,sx-2-20,trackY-34,40,40);ctx.globalAlpha=.3*fl;
-    ctx.drawImage(flameSpr,sx-2-34,trackY-48,68,68);
-    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
-    if(Math.random()<.5)sparks.push({x:sx-2,y:trackY-8,vx:(Math.random()-.5)*.7,vy:-Math.random()*.9-.2,life:1,r:Math.random()*1.6+.6});}
+  const bx=mb.x,by=mb.y,bw=mb.w,bh=mb.h;
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=14;ctx.shadowOffsetY=6;
+  const mg=ctx.createLinearGradient(bx,0,bx+bw,0);mg.addColorStop(0,'#8a4a22');mg.addColorStop(.5,'#a35b2b');mg.addColorStop(1,'#5e3113');
+  ctx.fillStyle=mg;rct(bx,by,bw,bh,8);ctx.fill();ctx.restore();
+  ctx.strokeStyle='rgba(30,15,5,.6)';ctx.lineWidth=1.5;rct(bx,by,bw,bh,8);ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.moveTo(bx+bw*.14,by+6);ctx.lineTo(bx+bw*.14,by+bh-6);ctx.stroke();
+  ctx.save();ctx.translate(bx+bw*.55,by+bh/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='rgba(255,217,138,.9)';ctx.font='700 '+Math.round(bw*.2)+'px Khand,"Noto Sans Devanagari",sans-serif';
+  ctx.fillText('माचिस',0,0);ctx.restore();
+  const sw=9,sgx=bx-sw-2;
+  const sg=ctx.createLinearGradient(sgx,0,sgx+sw,0);sg.addColorStop(0,'#241207');sg.addColorStop(1,'#3d2210');
+  ctx.fillStyle=sg;rct(sgx,by+3,sw,bh-6,3);ctx.fill();
+  ctx.fillStyle='rgba(255,200,120,.35)';
+  for(let yy=by+8;yy<by+bh-8;yy+=5){ctx.fillRect(sgx+1+((yy*7)%5),yy,1.6,1.6);}
+  if(activity>.02){ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=activity*.55;
+    const ag=ctx.createLinearGradient(sgx,0,sgx+sw,0);ag.addColorStop(0,'rgba(255,190,80,0)');ag.addColorStop(1,'rgba(255,190,80,.9)');
+    ctx.fillStyle=ag;rct(sgx,by+3,sw,bh-6,3);ctx.fill();ctx.restore();}
+  activity*=.9;
+  let sy=stickY(),sx=trk.x;
+  if(state>=IGNITE){const q=ease(Math.min(1,(now-igniteT)/700));const rx=W*.30,ry=H*.62;
+    sx=lerp(trk.x,rx,q);sy=lerp(trk.y1,ry,q);}
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=6;
+  const wg=ctx.createLinearGradient(sx-4,0,sx+4,0);wg.addColorStop(0,'#8a5a2a');wg.addColorStop(1,'#d9a45e');
+  ctx.fillStyle=wg;rct(sx-3.5,sy,7,52,3.5);ctx.fill();ctx.restore();
+  ctx.fillStyle='#b3261e';ctx.beginPath();ctx.ellipse(sx,sy-2,5.5,8,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,140,130,.5)';ctx.beginPath();ctx.arc(sx-1.5,sy-4,2,0,7);ctx.fill();
+  const lit=state>=IGNITE;
+  const flickerWhileStrike=(state===STRIKE&&p>.3&&Math.random()<.5);
+  if(lit||flickerWhileStrike){
+    const fl=lit?(.85+Math.sin(t*13)*.2):(.25+Math.random()*.3);
+    ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.95*fl;
+    ctx.drawImage(flameSpr,sx-20,sy-46,40,40);ctx.globalAlpha=.3*fl;
+    ctx.drawImage(flameSpr,sx-34,sy-60,68,68);
+    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;}
+  if(state===STRIKE&&dragging&&p>lastP){activity=Math.min(1,activity+.25);
+    if(Math.random()<.8)sparkAt(trk.x+4,sy,false);}
+  lastP=p;
+  if(state>=ARRANGE){let all=true;
+    for(const d of diyas){
+      const q=ease(Math.min(1,(now-arrangeT-d.t0)/d.dur));if(q<1)all=false;
+      const x=lerp(d.sx,d.tx,q),y=lerp(d.sy,d.ty,q),sc=.6+.4*q;
+      if(q>=1&&!d.lit){d.lit=true;d.pop=now;vibrate(4);burst(d.tx,d.ty-6,4,1);}
+      ctx.globalAlpha=q<1?q:.9+Math.sin(t*7+d.tx)*.1;
+      ctx.drawImage(bowlSpr,x-17*sc,y-10*sc,34*sc,20*sc);
+      if(d.lit){const fl=.82+Math.sin(t*7+d.tx*1.7)*.14;
+        ctx.globalCompositeOperation='lighter';
+        ctx.globalAlpha=.85*fl;ctx.drawImage(flameSpr,x-14,y-30,28,28);
+        ctx.globalAlpha=.28*fl;ctx.drawImage(flameSpr,x-26,y-42,52,52);
+        ctx.globalCompositeOperation='source-over';}
+      ctx.globalAlpha=1;}
+    if(all&&state===ARRANGE){state=DONE;doneT=now;burst(wordCx,wordCy+boxH*.4,24,2);vibrate(25);
+      setTimeout(()=>{cta.style.display='block';rs.style.display='block';},450);}}
   for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.x+=s.vx;s.y+=s.vy;s.vy+=.012;s.life-=.022;
     if(s.life<=0){sparks.splice(i,1);continue;}
     ctx.globalAlpha=s.life;ctx.fillStyle='#ffd98a';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();}
   ctx.globalAlpha=1;
-  if(!firstTouch&&!complete){const a=.55+Math.sin(t*3)*.3;
+  if(!firstTouch&&state===IDLE){const a=.55+Math.sin(t*3)*.3;
     ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';
     ctx.font='600 '+Math.min(W*.042,17)+'px Khand,"Noto Sans Devanagari",sans-serif';
-    ctx.fillText('माचिस खिसकाइए',W/2,trackY+34);
-    const ax=x0+(x1-x0)*((t*.6)%1);ctx.globalAlpha=a*.8;
-    ctx.beginPath();ctx.arc(ax,trackY-26,5,0,7);ctx.fill();ctx.globalAlpha=1;}
+    ctx.fillText('माचिस घिसाइए',trk.x-14,trk.y0+46);
+    const ay=trk.y0-((t*40)%(trk.y0-trk.y1));ctx.globalAlpha=a*.8;
+    ctx.beginPath();ctx.arc(trk.x-18,ay,5,0,7);ctx.fill();ctx.globalAlpha=1;}
   ctx.fillStyle='rgba(200,210,235,.5)';
   ctx.font='500 '+Math.min(W*.033,13)+'px Khand,"Noto Sans Devanagari",sans-serif';
   ctx.fillText(FOOT,W/2,H*.965);
-  if(n>lastLit){lastLit=n;try{navigator.vibrate&&navigator.vibrate(6);}catch(e){}}
-  if(complete&&Math.random()<.02)burst(Math.random()*W,wordCy+(Math.random()-.5)*boxH,6,1.4);
+  if(demo&&state===IDLE&&now-t0>800){if(!demoStart)demoStart=now;
+    p=Math.min(1,(now-demoStart)/900);firstTouch=true;
+    if(p>=1)ignite();}
+  if(state===IGNITE&&now-igniteT>550)startArrange();
+  if(state===DONE&&Math.random()<.015)burst(Math.random()*W,wordCy+(Math.random()-.5)*boxH,5,1.2);
   requestAnimationFrame(frame);
 }
 function rct(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
-function go(x){const np=Math.max(0,Math.min(1,(x-x0)/(x1-x0)));if(np>maxP)maxP=np;p=maxP;}
+function lerp(a,b,q){return a+(b-a)*q;}
+function ease(q){return 1-Math.pow(1-q,3);}
 cv.addEventListener('pointerdown',e=>{firstTouch=true;
-  if(complete)return;
-  if(Math.abs(e.clientY-trackY)<80){dragging=true;try{cv.setPointerCapture(e.pointerId);}catch(_){}go(e.clientX);}});
-cv.addEventListener('pointermove',e=>{if(dragging)go(e.clientX);});
-addEventListener('pointerup',()=>{dragging=false;
-  if(!complete&&p>=.99){p=1;complete=true;
-    burst(x1,trackY-14,26,2.2);
-    const wp=pts[Math.floor(pts.length*.7)];setTimeout(()=>burst(wp[0],wp[1]-20,20,1.8),260);
-    const wq=pts[Math.floor(pts.length*.3)];setTimeout(()=>burst(wq[0],wq[1]-20,20,1.8),520);
-    setTimeout(()=>{cta.style.display='block';},650);}});
+  if(state!==IDLE)return;
+  if(Math.abs(e.clientX-trk.x)<70&&Math.abs(e.clientY-stickY())<80){
+    state=STRIKE;dragging=true;p0=p;lastY=e.clientY;
+    try{cv.setPointerCapture(e.pointerId);}catch(_){}}});
+cv.addEventListener('pointermove',e=>{if(state===STRIKE&&dragging){
+  p=Math.max(0,Math.min(1,p0+(lastY-e.clientY)/(trk.y0-trk.y1)));}});
+addEventListener('pointerup',()=>{if(state===STRIKE){dragging=false;
+  if(p>=.92)ignite();else{p=0;state=IDLE;}}});
 cv.oncontextmenu=e=>e.preventDefault();
 cta.addEventListener('click',()=>{const u=location.href;
   if(navigator.share){navigator.share({title:HI,text:HI+' — '+WORD,url:u}).catch(()=>{});}
   else if(navigator.clipboard){navigator.clipboard.writeText(u).then(()=>{cta.textContent='लिंक कॉपी हो गया';setTimeout(()=>cta.textContent='अपना दिया जलाएँ · शेयर करें',2200);});}});
+rs.addEventListener('click',()=>location.reload());
 function start(){started=true;sampleWord();requestAnimationFrame(frame);}
-if(document.fonts&&document.fonts.ready)Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,800))]).then(start);
+if(document.fonts&&document.fonts.ready){
+  Promise.race([document.fonts.load('700 40px Khand').then(()=>document.fonts.ready),new Promise(r=>setTimeout(r,1500))]).then(start);}
 else start();
 </script>
 </body>
