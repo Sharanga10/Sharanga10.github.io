@@ -32,11 +32,12 @@ const cv=document.getElementById('c'),ctx=cv.getContext('2d'),acts=document.getE
 let W=0,H=0,DPR=1,started=false;
 const HI='एक दिया नशा मुक्ति के लिए',W1='शुभ',W2='दीपावली',FOOT='परामर्श 14446 · मानस 1933 · @CGPoliceDept';
 const IDLE=0,STRIKE=1,IGNITE=2,ARRANGE=3,DONE=4;
-let state=IDLE,p=0,dragging=false,p0=0,lastX=0,igniteT=0,arrangeT=0,doneT=0,firstTouch=false,t0=performance.now();
-let activity=0,lastP=0,wordCx=0,wordCy=0,boxW=0,boxH=0,curMinD=16,ignX=0,ignY=0;
-const mb={},trk={};
+let state=IDLE,p=0,dragging=false,p0=0,lastY=0,igniteT=0,arrangeT=0,doneT=0,firstTouch=false,t0=performance.now();
+let activity=0,lastP=0,wordCx=0,wordCy=0,boxW=0,boxH=0,curMinD=16,ignX=0,ignY=0,ignRot=0;
+const mb={},stp={},trk={};
 let targets=[],diyas=[],sparks=[],dust=[];
 const demo=/demo/.test(location.search);let demoStart=0;
+const L=27;
 const flameSpr=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
  const r=g.createRadialGradient(32,38,2,32,38,30);
  r.addColorStop(0,'rgba(255,252,235,1)');r.addColorStop(.22,'rgba(255,214,96,.96)');
@@ -51,7 +52,8 @@ const bowlSpr=(()=>{const c=document.createElement('canvas');c.width=84;c.height
  return c;})();
 function layout(){
   mb.w=Math.min(W*.42,340);mb.h=Math.min(H*.075,60);mb.x=(W-mb.w)/2;mb.y=H*.66;
-  trk.x0=mb.x+mb.w+16;trk.x1=mb.x+mb.w*.08;trk.y=mb.y-4;
+  stp.x=mb.x+mb.w-14;stp.y=mb.y-12;stp.w=12;stp.h=mb.h+24;
+  trk.x=stp.x+stp.w/2+9;trk.y0=stp.y+14;trk.y1=stp.y+stp.h-8;
   boxW=Math.min(W*.97,640);boxH=boxW*.62;wordCx=W/2;wordCy=H*.26;
 }
 function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
@@ -84,9 +86,9 @@ function sampleWord(){
 function burst(x,y,n,pow){for(let i=0;i<n;i++){const a=Math.random()*6.283,s=(Math.random()*.55+.25)*pow;
   sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.4,life:1,r:Math.random()*2+1});}}
 function sparkAt(x,y){sparks.push({x:x+(Math.random()-.5)*6,y,vx:(Math.random()-.5)*1.4,vy:-Math.random()*1.2-.2,life:1,r:Math.random()*1.8+.5});}
-function stickX(){return trk.x0+(trk.x1-trk.x0)*p;}
+function headY(){return trk.y0+(trk.y1-trk.y0)*p;}
 function vibrate(ms){try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}}
-function ignite(){state=IGNITE;igniteT=performance.now();ignX=stickX();ignY=trk.y;burst(ignX+2,ignY,30,2.4);vibrate(35);}
+function ignite(){state=IGNITE;igniteT=performance.now();ignX=trk.x;ignY=headY()-L;ignRot=0;burst(trk.x,headY(),30,2.4);vibrate(35);}
 function startArrange(){state=ARRANGE;arrangeT=performance.now();diyas=targets.map((t,i)=>({tx:t[0],ty:t[1],
   sx:W*(.18+Math.random()*.64),sy:H*(.55+Math.random()*.25),t0:i*24,dur:460,lit:false,pop:0}));}
 function frame(now){
@@ -112,6 +114,7 @@ function frame(now){
     ctx.fillText(W1,wordCx,wordCy-boxH*.26);
     ctx.font='700 '+g2+'px Khand,"Noto Sans Devanagari",sans-serif';
     ctx.fillText(W2,wordCx,wordCy+boxH*.26);ctx.restore();}
+  // matchbox (horizontal) with vertical striker strip on its right side
   const bx=mb.x,by=mb.y,bw=mb.w,bh=mb.h;
   ctx.save();ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=14;ctx.shadowOffsetY=6;
   const mg=ctx.createLinearGradient(0,by,0,by+bh);mg.addColorStop(0,'#a35b2b');mg.addColorStop(.5,'#8a4a22');mg.addColorStop(1,'#5e3113');
@@ -119,35 +122,39 @@ function frame(now){
   ctx.strokeStyle='rgba(30,15,5,.6)';ctx.lineWidth=1.5;rct(bx,by,bw,bh,8);ctx.stroke();
   ctx.strokeStyle='rgba(0,0,0,.35)';ctx.beginPath();ctx.moveTo(bx+bw*.84,by+5);ctx.lineTo(bx+bw*.84,by+bh-5);ctx.stroke();
   ctx.fillStyle='rgba(255,217,138,.9)';ctx.font='700 '+Math.round(bh*.42)+'px Khand,"Noto Sans Devanagari",sans-serif';
-  ctx.fillText('माचिस',bx+bw*.45,by+bh/2);
-  const stp=8,sgx=bx+4,sgy=by-stp-1,sgw=bw-8;
-  const sg=ctx.createLinearGradient(0,sgy,0,sgy+stp);sg.addColorStop(0,'#3d2210');sg.addColorStop(1,'#241207');
-  ctx.fillStyle=sg;rct(sgx,sgy,sgw,stp,3);ctx.fill();
+  ctx.fillText('माचिस',bx+bw*.42,by+bh/2);
+  const sg=ctx.createLinearGradient(0,stp.y,0,stp.y+stp.h);sg.addColorStop(0,'#3d2210');sg.addColorStop(1,'#241207');
+  ctx.fillStyle=sg;rct(stp.x,stp.y,stp.w,stp.h,4);ctx.fill();
   ctx.fillStyle='rgba(255,200,120,.35)';
-  for(let xx=sgx+6;xx<sgx+sgw-6;xx+=6){ctx.fillRect(xx,sgy+1+((xx*13)%4),1.6,1.6);}
-  if(activity>.02){const hx=stickX();ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=activity*.6;
-    const fg=ctx.createLinearGradient(hx,0,sgx+sgw,0);fg.addColorStop(0,'rgba(255,200,90,.9)');fg.addColorStop(1,'rgba(255,190,80,0)');
-    ctx.fillStyle=fg;ctx.fillRect(hx,sgy,sgx+sgw-hx,stp);ctx.restore();}
+  for(let yy=stp.y+6;yy<stp.y+stp.h-6;yy+=6){ctx.fillRect(stp.x+1+((yy*13)%4),yy,1.6,1.6);}
+  if(activity>.02){const hy=headY();ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=activity*.6;
+    const fg=ctx.createLinearGradient(0,stp.y,0,hy);fg.addColorStop(0,'rgba(255,190,80,0)');fg.addColorStop(1,'rgba(255,200,90,.9)');
+    ctx.fillStyle=fg;ctx.fillRect(stp.x,stp.y,stp.w,hy-stp.y);ctx.restore();}
   activity*=.9;
-  let sx=stickX(),sy=trk.y;
+  // vertical matchstick: head down, rubbing down the side strip, then lifts and flips
+  let mx=trk.x,hy=headY(),my=hy-L,rot=0;
   if(state>=IGNITE){const q=ease(Math.min(1,(now-igniteT)/700));
-    sx=lerp(ignX,W*.32,q);sy=lerp(ignY,H*.56,q);}
-  ctx.save();ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=6;
-  const wg=ctx.createLinearGradient(0,sy-4,0,sy+4);wg.addColorStop(0,'#d9a45e');wg.addColorStop(1,'#8a5a2a');
-  ctx.fillStyle=wg;rct(sx,sy-3.5,54,7,3.5);ctx.fill();ctx.restore();
-  ctx.fillStyle='#b3261e';ctx.beginPath();ctx.ellipse(sx+2,sy,8,5.5,0,0,7);ctx.fill();
-  ctx.fillStyle='rgba(255,140,130,.5)';ctx.beginPath();ctx.arc(sx-1,sy-2,2.4,0,7);ctx.fill();
+    mx=lerp(ignX,W*.30,q);my=lerp(ignY,H*.56,q);rot=lerp(0,Math.PI,q);}
+  ctx.save();ctx.translate(mx,my);ctx.rotate(rot);
+  ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=6;
+  const wg=ctx.createLinearGradient(-4,0,4,0);wg.addColorStop(0,'#d9a45e');wg.addColorStop(1,'#8a5a2a');
+  ctx.fillStyle=wg;rct(-3.5,-L,7,L*2,3.5);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#b3261e';ctx.beginPath();ctx.ellipse(0,L-2,5.5,8,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,140,130,.5)';ctx.beginPath();ctx.arc(-2,L-4,2.4,0,7);ctx.fill();
   const lit=state>=IGNITE;
-  const flickerWhileStrike=(state===STRIKE&&p>.3&&Math.random()<.5);
-  if(lit||flickerWhileStrike){
+  const flicker=(state===STRIKE&&p>.25&&Math.random()<.5);
+  if(lit||flicker){
     const fl=lit?(.85+Math.sin(t*13)*.2):(.25+Math.random()*.3);
     ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.95*fl;
-    ctx.drawImage(flameSpr,sx-18,sy-46,40,40);ctx.globalAlpha=.3*fl;
-    ctx.drawImage(flameSpr,sx-32,sy-60,68,68);
+    ctx.drawImage(flameSpr,-20,L-24,40,40);ctx.globalAlpha=.3*fl;
+    ctx.drawImage(flameSpr,-34,L-38,68,68);
     ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;}
+  ctx.restore();
   if(state===STRIKE&&dragging&&p>lastP){activity=Math.min(1,activity+.25);
-    if(Math.random()<.8)sparkAt(sx+2,trk.y-6);}
+    if(Math.random()<.8)sparkAt(trk.x,hy-4);}
   lastP=p;
+  // diyas
   if(state>=ARRANGE){let all=true;const s=curMinD*1.5;
     const dq=state===DONE?Math.min(1,(now-doneT)/700):0;
     for(const d of diyas){
@@ -172,9 +179,9 @@ function frame(now){
   if(!firstTouch&&state===IDLE){const a=.55+Math.sin(t*3)*.3;
     ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';
     ctx.font='600 '+Math.min(W*.042,17)+'px Khand,"Noto Sans Devanagari",sans-serif';
-    ctx.fillText('दाएँ से बाएँ माचिस घिसाइए',W/2,mb.y+mb.h+40);
-    const ax=trk.x0-((t*60)%(trk.x0-trk.x1));ctx.globalAlpha=a*.8;
-    ctx.beginPath();ctx.arc(ax,trk.y-16,5,0,7);ctx.fill();ctx.globalAlpha=1;}
+    ctx.fillText('माचिस को नीचे घिसाइए',W/2,mb.y+mb.h+40);
+    const ay=trk.y0+((t*60)%(trk.y1-trk.y0));ctx.globalAlpha=a*.8;
+    ctx.beginPath();ctx.arc(trk.x,ay-16,5,0,7);ctx.fill();ctx.globalAlpha=1;}
   ctx.fillStyle='rgba(200,210,235,.5)';
   ctx.font='500 '+Math.min(W*.033,13)+'px Khand,"Noto Sans Devanagari",sans-serif';
   ctx.fillText(FOOT,W/2,H*.965);
@@ -191,11 +198,11 @@ function lerp(a,b,q){return a+(b-a)*q;}
 function ease(q){return 1-Math.pow(1-q,3);}
 cv.addEventListener('pointerdown',e=>{firstTouch=true;
   if(state!==IDLE)return;
-  if(e.clientX>trk.x1-50&&e.clientX<trk.x0+70&&e.clientY>mb.y-60&&e.clientY<mb.y+40){
-    state=STRIKE;dragging=true;p0=p;lastX=e.clientX;
+  if(e.clientX>stp.x-40&&e.clientX<stp.x+80&&e.clientY>stp.y-60&&e.clientY<stp.y+stp.h+60){
+    state=STRIKE;dragging=true;p0=p;lastY=e.clientY;
     try{cv.setPointerCapture(e.pointerId);}catch(_){}}});
 cv.addEventListener('pointermove',e=>{if(state===STRIKE&&dragging){
-  p=Math.max(0,Math.min(1,p0+(lastX-e.clientX)/(trk.x0-trk.x1)));}});
+  p=Math.max(0,Math.min(1,p0+(e.clientY-lastY)/(trk.y1-trk.y0)));}});
 addEventListener('pointerup',()=>{if(state===STRIKE){dragging=false;
   if(p>=.92)ignite();else{p=0;state=IDLE;}}});
 cv.oncontextmenu=e=>e.preventDefault();
