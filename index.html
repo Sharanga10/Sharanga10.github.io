@@ -63,21 +63,22 @@ function initDust(){dust=[];const n=Math.round(W*H/26000);
 addEventListener('resize',()=>{resize();});resize();
 function sampleWord(){
   const oc=document.createElement('canvas');oc.width=900;oc.height=520;const o=oc.getContext('2d');
-  o.fillStyle='#fff';o.textAlign='center';o.textBaseline='middle';
-  o.font='700 240px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
-  o.fillText(W1,450,135);
-  o.font='700 205px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
-  o.fillText(W2,450,395);
+  o.textAlign='center';o.textBaseline='middle';
+  o.strokeStyle='#fff';o.lineWidth=7;
+  o.font='700 250px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
+  o.strokeText(W1,450,130);
+  o.font='700 215px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
+  o.strokeText(W2,450,395);
   const d=o.getImageData(0,0,900,520).data,A=[],st=3;
   for(let y=0;y<520;y+=st)for(let x=0;x<900;x+=st)
     if(d[(y*900+x)*4+3]>150)A.push([x/900,y/520]);
   const cand=A.map(([px,py])=>[wordCx+(px-.5)*boxW,wordCy+(py-.5)*boxH]);
-  let minD=Math.max(13,boxW/46),keep=[];
+  let minD=Math.max(14,boxW/42),keep=[];
   for(let pass=0;pass<6;pass++){keep=[];
     for(const c of cand){let ok=true;
       for(const k of keep){const dx=c[0]-k[0],dy=c[1]-k[1];if(dx*dx+dy*dy<minD*minD){ok=false;break;}}
       if(ok)keep.push(c);}
-    if(keep.length<=80)break;minD+=1.5;}
+    if(keep.length<=70)break;minD+=1.5;}
   curMinD=minD;
   keep.sort((a,b)=>((a[1]>wordCy?1:0)-(b[1]>wordCy?1:0))||(a[0]-b[0]));
   targets=keep;
@@ -103,7 +104,7 @@ function frame(now){
   ctx.font='700 '+hs+'px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
   ctx.fillStyle='rgba(245,192,78,.95)';ctx.shadowColor='rgba(245,192,78,.8)';ctx.shadowBlur=14;
   ctx.fillText(HI,W/2,H*.075);ctx.shadowBlur=0;
-  if(state===DONE){const a=Math.min(1,(now-doneT)/900)*(.3+Math.sin(t*2)*.05);
+  if(state===DONE){const a=Math.min(1,(now-doneT)/900)*(.28+Math.sin(t*2)*.05);
     ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';ctx.shadowColor='rgba(255,180,60,.9)';ctx.shadowBlur=34;
     const g1=Math.min(boxW*.24,96),g2=Math.min(boxW*.2,80);
     ctx.font='700 '+g1+'px Khand,"Noto Sans Devanagari",sans-serif';
@@ -147,7 +148,7 @@ function frame(now){
   if(state===STRIKE&&dragging&&p>lastP){activity=Math.min(1,activity+.25);
     if(Math.random()<.8)sparkAt(trk.x+4,sy,false);}
   lastP=p;
-  if(state>=ARRANGE){let all=true;const s=curMinD*1.5;
+  if(state>=ARRANGE){let all=true;const s=curMinD*1.4;
     for(const d of diyas){
       const q=ease(Math.min(1,(now-arrangeT-d.t0)/d.dur));if(q<1)all=false;
       const x=lerp(d.sx,d.tx,q),y=lerp(d.sy,d.ty,q),sc=.6+.4*q;
