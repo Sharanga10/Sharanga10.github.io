@@ -35,7 +35,7 @@ let W=0,H=0,DPR=1,started=false;
 const HI='एक दिया नशा मुक्ति के लिए',WORD='शुभ दीपावली',FOOT='परामर्श 14446 · मानस 1933 · @CGPoliceDept';
 const IDLE=0,STRIKE=1,IGNITE=2,ARRANGE=3,DONE=4;
 let state=IDLE,p=0,dragging=false,p0=0,lastY=0,igniteT=0,arrangeT=0,doneT=0,firstTouch=false,t0=performance.now();
-let activity=0,lastP=0,wordCx=0,wordCy=0,boxW=0,boxH=0;
+let activity=0,lastP=0,wordCx=0,wordCy=0,boxW=0,boxH=0,curMinD=16;
 const mb={},trk={};
 let targets=[],diyas=[],sparks=[],dust=[];
 const demo=/demo/.test(location.search);let demoStart=0;
@@ -54,7 +54,7 @@ const bowlSpr=(()=>{const c=document.createElement('canvas');c.width=84;c.height
 function layout(){
   mb.w=Math.min(W*.17,74);mb.h=Math.min(H*.30,240);mb.x=W-30-mb.w;mb.y=H*.50;
   trk.x=mb.x-8;trk.y0=H*.84;trk.y1=mb.y+mb.h*.22;
-  boxW=Math.min(W*.92,620);boxH=boxW*.24;wordCx=W/2;wordCy=H*.30;
+  boxW=Math.min(W*.96,640);boxH=boxW*.26;wordCx=W/2;wordCy=H*.28;
 }
 function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
   cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);layout();initDust();if(started)sampleWord();}
@@ -66,16 +66,19 @@ function sampleWord(){
   o.fillStyle='#fff';o.textAlign='center';o.textBaseline='middle';
   o.font='700 150px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
   o.fillText(WORD,550,140);
-  const d=o.getImageData(0,0,1100,280).data,A=[],st=6;
+  const d=o.getImageData(0,0,1100,280).data,A=[],st=4;
   for(let y=0;y<280;y+=st)for(let x=0;x<1100;x+=st)
     if(d[(y*1100+x)*4+3]>150)A.push([x/1100,y/280]);
   const cand=A.map(([px,py])=>[wordCx+(px-.5)*boxW,wordCy+(py-.5)*boxH]);
-  const minD=Math.max(15,boxW/22),keep=[];
-  for(const c of cand){let ok=true;
-    for(const k of keep){const dx=c[0]-k[0],dy=c[1]-k[1];if(dx*dx+dy*dy<minD*minD){ok=false;break;}}
-    if(ok)keep.push(c);}
+  let minD=Math.max(13,boxW/44),keep=[];
+  for(let pass=0;pass<6;pass++){keep=[];
+    for(const c of cand){let ok=true;
+      for(const k of keep){const dx=c[0]-k[0],dy=c[1]-k[1];if(dx*dx+dy*dy<minD*minD){ok=false;break;}}
+      if(ok)keep.push(c);}
+    if(keep.length<=72)break;minD+=2;}
+  curMinD=minD;
   keep.sort((a,b)=>(a[0]-b[0])||(a[1]-b[1]));
-  targets=keep.slice(0,56);
+  targets=keep;
 }
 function burst(x,y,n,pow){for(let i=0;i<n;i++){const a=Math.random()*6.283,s=(Math.random()*.55+.25)*pow;
   sparks.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-.4,life:1,r:Math.random()*2+1});}}
@@ -84,7 +87,7 @@ function stickY(){return trk.y0+(trk.y1-trk.y0)*p;}
 function vibrate(ms){try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}}
 function ignite(){state=IGNITE;igniteT=performance.now();burst(trk.x,stickY(),30,2.4);vibrate(35);}
 function startArrange(){state=ARRANGE;arrangeT=performance.now();diyas=targets.map((t,i)=>({tx:t[0],ty:t[1],
-  sx:W*(.18+Math.random()*.64),sy:H*(.55+Math.random()*.25),t0:i*30,dur:480,lit:false,pop:0}));}
+  sx:W*(.18+Math.random()*.64),sy:H*(.55+Math.random()*.25),t0:i*26,dur:460,lit:false,pop:0}));}
 function frame(now){
   const t=(now-t0)/1000;ctx.clearRect(0,0,W,H);
   const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0b1638');bg.addColorStop(1,'#050a1c');
@@ -98,7 +101,7 @@ function frame(now){
   ctx.font='700 '+hs+'px Khand,"Noto Sans Devanagari","Nirmala UI",sans-serif';
   ctx.fillStyle='rgba(245,192,78,.95)';ctx.shadowColor='rgba(245,192,78,.8)';ctx.shadowBlur=14;
   ctx.fillText(HI,W/2,H*.075);ctx.shadowBlur=0;
-  if(state===DONE){const a=Math.min(1,(now-doneT)/900)*(.3+Math.sin(t*2)*.05);
+  if(state===DONE){const a=Math.min(1,(now-doneT)/900)*(.34+Math.sin(t*2)*.05);
     ctx.save();ctx.globalAlpha=a;ctx.fillStyle='#ffd98a';ctx.shadowColor='rgba(255,180,60,.9)';ctx.shadowBlur=34;
     ctx.font='700 '+Math.min(boxW*.14,72)+'px Khand,"Noto Sans Devanagari",sans-serif';
     ctx.fillText(WORD,wordCx,wordCy);ctx.restore();}
@@ -139,17 +142,17 @@ function frame(now){
   if(state===STRIKE&&dragging&&p>lastP){activity=Math.min(1,activity+.25);
     if(Math.random()<.8)sparkAt(trk.x+4,sy,false);}
   lastP=p;
-  if(state>=ARRANGE){let all=true;
+  if(state>=ARRANGE){let all=true;const s=curMinD*1.55;
     for(const d of diyas){
       const q=ease(Math.min(1,(now-arrangeT-d.t0)/d.dur));if(q<1)all=false;
       const x=lerp(d.sx,d.tx,q),y=lerp(d.sy,d.ty,q),sc=.6+.4*q;
       if(q>=1&&!d.lit){d.lit=true;d.pop=now;vibrate(4);burst(d.tx,d.ty-6,4,1);}
       ctx.globalAlpha=q<1?q:.9+Math.sin(t*7+d.tx)*.1;
-      ctx.drawImage(bowlSpr,x-17*sc,y-10*sc,34*sc,20*sc);
+      ctx.drawImage(bowlSpr,x-s*.5*sc,y-s*.28*sc,s*sc,s*.58*sc);
       if(d.lit){const fl=.82+Math.sin(t*7+d.tx*1.7)*.14;
         ctx.globalCompositeOperation='lighter';
-        ctx.globalAlpha=.85*fl;ctx.drawImage(flameSpr,x-14,y-30,28,28);
-        ctx.globalAlpha=.28*fl;ctx.drawImage(flameSpr,x-26,y-42,52,52);
+        ctx.globalAlpha=.85*fl;ctx.drawImage(flameSpr,x-s*.45,y-s*1.05,s*.9,s*.9);
+        ctx.globalAlpha=.28*fl;ctx.drawImage(flameSpr,x-s*.85,y-s*1.35,s*1.7,s*1.7);
         ctx.globalCompositeOperation='source-over';}
       ctx.globalAlpha=1;}
     if(all&&state===ARRANGE){state=DONE;doneT=now;burst(wordCx,wordCy+boxH*.4,24,2);vibrate(25);
